@@ -26,7 +26,7 @@ func (m *Middleware) AuthCheck(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := r.Cookie("session_id")
 		if errors.Is(err, http.ErrNoCookie) {
-			response := models.Response{Status: http.StatusUnauthorized, Body: nil}
+			response := models.Response{Status: http.StatusUnauthorized, Body: models.ErrorResponse{Error: "Not authorized"}}
 			httpResponse.SendResponse(w, r, &response, m.Lg)
 			return
 		}
@@ -34,7 +34,7 @@ func (m *Middleware) AuthCheck(next http.Handler) http.Handler {
 		userId, err := m.Core.GetUserId(r.Context(), session.Value)
 		if err != nil {
 			m.Lg.Error("auth check error", "err", err.Error())
-			response := models.Response{Status: http.StatusUnauthorized, Body: nil}
+			response := models.Response{Status: http.StatusUnauthorized, Body: models.ErrorResponse{Error: "Not authorized"}}
 			httpResponse.SendResponse(w, r, &response, m.Lg)
 			return
 		}
@@ -53,7 +53,7 @@ func (m *Middleware) AuthCheck(next http.Handler) http.Handler {
 func (m *Middleware) MethodCheck(next http.Handler, method string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != method {
-			response := models.Response{Status: http.StatusMethodNotAllowed, Body: nil}
+			response := models.Response{Status: http.StatusMethodNotAllowed, Body: models.ErrorResponse{Error: "Method not allowed"}}
 			httpResponse.SendResponse(w, r, &response, m.Lg)
 			return
 		}

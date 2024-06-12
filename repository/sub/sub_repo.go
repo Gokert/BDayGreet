@@ -66,8 +66,14 @@ func (r *SubRepo) pingDb(timer uint32, log *logrus.Logger) error {
 }
 
 func (r *SubRepo) BirthdaySub(ctx context.Context, userId, subscriberId uint64) (bool, error) {
-	res, err := r.db.ExecContext(ctx, "INSERT INTO subscriber (id_subscribe_from, id_subscribe_to) VALUES (subscriberId, userId)")
+	fmt.Printf("%d %d", userId, subscriberId)
+
+	res, err := r.db.ExecContext(ctx, "INSERT INTO subscriber (id_subscribe_from, id_subscribe_to) VALUES ($1, $2)", userId, subscriberId)
 	if err != nil {
+		if err.Error() == errs.ErrDuplicateSub.Error() {
+			return false, err
+		}
+
 		return false, fmt.Errorf("insert subscriber err: %s", err.Error())
 	}
 

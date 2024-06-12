@@ -16,9 +16,9 @@ import (
 type IProfileRepo interface {
 	GetUser(ctx context.Context, login string, password []byte) (*models.UserItem, bool, error)
 	FindUser(ctx context.Context, login string) (bool, error)
-	CreateUser(ctx context.Context, login string, password []byte) error
+	CreateUser(ctx context.Context, user *models.SignupRequest, password []byte) error
 	GetUserId(ctx context.Context, login string) (uint64, error)
-	GetEmployees(ctx context.Context, limit, offset uint64) ([]*models.UserItem, error)
+	GetEmployees(ctx context.Context, offset, limit uint64) ([]*models.UserItem, error)
 }
 
 type ProfileRepo struct {
@@ -103,9 +103,9 @@ func (r *ProfileRepo) FindUser(ctx context.Context, login string) (bool, error) 
 	return true, nil
 }
 
-func (r *ProfileRepo) CreateUser(ctx context.Context, login string, password []byte) error {
+func (r *ProfileRepo) CreateUser(ctx context.Context, user *models.SignupRequest, password []byte) error {
 	var userID uint64
-	err := r.db.QueryRowContext(ctx, "INSERT INTO profile(login, password) VALUES($1, $2, $3) RETURNING id", login, password).Scan(&userID)
+	err := r.db.QueryRowContext(ctx, "INSERT INTO profile(login, password, email, birthday) VALUES($1, $2, $3, $4) RETURNING id", user.Login, password, user.Email, user.Birthday).Scan(&userID)
 	if err != nil {
 		return fmt.Errorf("create user error: %s", err.Error())
 	}
@@ -128,8 +128,8 @@ func (r *ProfileRepo) GetUserId(ctx context.Context, login string) (uint64, erro
 	return userID, nil
 }
 
-func (r *ProfileRepo) GetEmployees(ctx context.Context, limit, offset uint64) ([]*models.UserItem, error) {
-	var users []*models.UserItem
+func (r *ProfileRepo) GetEmployees(ctx context.Context, offset, limit uint64) ([]*models.UserItem, error) {
+	users := make([]*models.UserItem, 0)
 
 	rows, err := r.db.QueryContext(ctx, "SELECT profile.id, profile.login, profile.email, profile.birthday FROM profile OFFSET $1 LIMIT $2", offset, limit)
 	if err != nil {

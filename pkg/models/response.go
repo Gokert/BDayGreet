@@ -8,3 +8,7 @@ type Response struct {
 type AuthCheckResponse struct {
 	Login string `json:"login"`
 }
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}

@@ -15,8 +15,8 @@ import (
 
 type IProfileCore interface {
 	GetUserId(ctx context.Context, sid string) (uint64, error)
-	GetEmployees(ctx context.Context, limit, offset uint64) ([]*models.UserItem, error)
-	CreateUserAccount(ctx context.Context, login string, password string) error
+	GetEmployees(ctx context.Context, offset, limit uint64) ([]*models.UserItem, error)
+	CreateUserAccount(ctx context.Context, user *models.SignupRequest) error
 	FindUserAccount(ctx context.Context, login string, password string) (*models.UserItem, bool, error)
 	FindUserByLogin(ctx context.Context, login string) (bool, error)
 }
@@ -141,9 +141,9 @@ func (c *Core) KillSession(ctx context.Context, sid string) error {
 	return nil
 }
 
-func (c *Core) CreateUserAccount(ctx context.Context, login string, password string) error {
-	hashPassword := utils.HashPassword(password)
-	err := c.profiles.CreateUser(ctx, login, hashPassword)
+func (c *Core) CreateUserAccount(ctx context.Context, user *models.SignupRequest) error {
+	hashPassword := utils.HashPassword(user.Password)
+	err := c.profiles.CreateUser(ctx, user, hashPassword)
 	if err != nil {
 		c.log.Errorf("create user account error: %s", err.Error())
 		return fmt.Errorf("create user account error: %s", err.Error())

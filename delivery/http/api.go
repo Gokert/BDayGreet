@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	errs "vk-rest/pkg/errors"
 	"vk-rest/pkg/middleware"
 	"vk-rest/pkg/models"
 	httpResponse "vk-rest/pkg/response"
@@ -38,7 +39,7 @@ func GetApi(core *usecase.Core, log *logrus.Logger) *Api {
 	api.mx.Handle("/signin", md.MethodCheck(http.HandlerFunc(api.Signin), http.MethodPost))
 	api.mx.Handle("/signup", md.MethodCheck(http.HandlerFunc(api.Signup), http.MethodPost))
 	api.mx.Handle("/logout", md.MethodCheck(http.HandlerFunc(api.Logout), http.MethodDelete))
-	api.mx.Handle("/authcheck", md.MethodCheck(http.HandlerFunc(api.AuthAccept), http.MethodDelete))
+	api.mx.Handle("/authcheck", md.MethodCheck(http.HandlerFunc(api.AuthAccept), http.MethodGet))
 	api.mx.Handle("/api/v1/employees/list", md.AuthCheck(md.MethodCheck(http.HandlerFunc(api.GetEmployees), http.MethodGet)))
 	api.mx.Handle("/api/v1/birthday/subscribe", md.AuthCheck(md.MethodCheck(http.HandlerFunc(api.BirthdaySub), http.MethodPost)))
 	api.mx.Handle("/api/v1/birthday/unsubscribe", md.AuthCheck(md.MethodCheck(http.HandlerFunc(api.BirthdayUnSub), http.MethodDelete)))
@@ -64,6 +65,7 @@ func (a *Api) Signin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.log.Error("Signin error: ", err.Error())
 		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bad request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -72,6 +74,7 @@ func (a *Api) Signin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.log.Error("Signin error: ", err.Error())
 		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bad request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -80,12 +83,14 @@ func (a *Api) Signin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.log.Error("Signin error: ", err.Error())
 		response.Status = http.StatusInternalServerError
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
 	if !found {
 		response.Status = http.StatusUnauthorized
+		response.Body = models.ErrorResponse{Error: "Not found"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -110,13 +115,22 @@ func (a *Api) Signup(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bad request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
 	err = json.Unmarshal(body, &request)
 	if err != nil {
-		response.Status = http.StatusInternalServerError
+		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
+		httpResponse.SendResponse(w, r, &response, a.log)
+		return
+	}
+
+	if request.Birthday == "" || request.Email == "" || request.Password == "" || request.Login == "" {
+		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Not have birthday, email, password or login"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -125,20 +139,23 @@ func (a *Api) Signup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.log.Error("Signup error: ", err.Error())
 		response.Status = http.StatusInternalServerError
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
 	if found {
 		response.Status = http.StatusConflict
+		response.Body = models.ErrorResponse{Error: "Already exist"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
-	err = a.profile.CreateUserAccount(r.Context(), request.Login, request.Password)
+	err = a.profile.CreateUserAccount(r.Context(), &request)
 	if err != nil {
 		a.log.Error("create user error: ", err.Error())
-		response.Status = http.StatusBadRequest
+		response.Status = http.StatusInternalServerError
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -152,6 +169,7 @@ func (a *Api) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bad request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -159,6 +177,7 @@ func (a *Api) Logout(w http.ResponseWriter, r *http.Request) {
 	err = a.session.KillSession(r.Context(), cookie.Value)
 	if err != nil {
 		response.Status = http.StatusInternalServerError
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -175,11 +194,18 @@ func (a *Api) AuthAccept(w http.ResponseWriter, r *http.Request) {
 
 	session, err := r.Cookie("session_id")
 	if err == nil && session != nil {
-		authorized, _ = a.session.FindActiveSession(r.Context(), session.Value)
+		authorized, err = a.session.FindActiveSession(r.Context(), session.Value)
+		if err != nil {
+			response.Status = http.StatusUnauthorized
+			response.Body = models.ErrorResponse{Error: "Not authorized"}
+			httpResponse.SendResponse(w, r, &response, a.log)
+			return
+		}
 	}
-	a.log.Warning("API", authorized)
+
 	if !authorized {
 		response.Status = http.StatusUnauthorized
+		response.Body = models.ErrorResponse{Error: "Not authorized"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -188,6 +214,7 @@ func (a *Api) AuthAccept(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.log.Error("auth accept error: ", err.Error())
 		response.Status = http.StatusInternalServerError
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -216,6 +243,7 @@ func (a *Api) GetEmployees(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.log.Error("Get employees error: ", err.Error())
 		response.Status = http.StatusInternalServerError
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -232,27 +260,39 @@ func (a *Api) BirthdaySub(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bab request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
 	err = json.Unmarshal(body, &request)
 	if err != nil {
-		response.Status = http.StatusInternalServerError
+		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bad request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
+	request.UserFromId = r.Context().Value(middleware.UserIDKey).(uint64)
 	res, err := a.sub.BirthdaySub(r.Context(), request.UserFromId, request.UserToId)
 	if err != nil {
+		if err.Error() == errs.ErrDuplicateSub.Error() {
+			response.Status = http.StatusConflict
+			response.Body = models.ErrorResponse{Error: "Already exist"}
+			httpResponse.SendResponse(w, r, &response, a.log)
+			return
+		}
+
 		a.log.Error("Birthday sub error: ", err.Error())
 		response.Status = http.StatusInternalServerError
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
 	if !res {
 		response.Status = http.StatusNotFound
+		response.Body = models.ErrorResponse{Error: "Not found"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -267,27 +307,32 @@ func (a *Api) BirthdayUnSub(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bad request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
 	err = json.Unmarshal(body, &request)
 	if err != nil {
-		response.Status = http.StatusInternalServerError
+		response.Status = http.StatusBadRequest
+		response.Body = models.ErrorResponse{Error: "Bad request"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
-	res, err := a.sub.BirthdayUnSub(r.Context(), request.UserFromId, request.UserToId)
+	request.UserFromId = r.Context().Value(middleware.UserIDKey).(uint64)
+	_, err = a.sub.BirthdayUnSub(r.Context(), request.UserFromId, request.UserToId)
 	if err != nil {
+		if err.Error() == errs.ErrNotFound.Error() {
+			response.Status = http.StatusNotFound
+			response.Body = models.ErrorResponse{Error: "Not found"}
+			httpResponse.SendResponse(w, r, &response, a.log)
+			return
+		}
+
 		a.log.Error("Birthday sub error: ", err.Error())
 		response.Status = http.StatusInternalServerError
-		httpResponse.SendResponse(w, r, &response, a.log)
-		return
-	}
-
-	if !res {
-		response.Status = http.StatusNotFound
+		response.Body = models.ErrorResponse{Error: "Internal server error"}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
