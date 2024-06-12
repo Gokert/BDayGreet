@@ -8,9 +8,9 @@ import (
 	"vk-rest/configs"
 	utils "vk-rest/pkg"
 	"vk-rest/pkg/models"
-	"vk-rest/repository/profile"
-	"vk-rest/repository/session"
-	"vk-rest/repository/sub"
+	"vk-rest/service/repository/profile"
+	"vk-rest/service/repository/session"
+	"vk-rest/service/repository/sub"
 )
 
 type IProfileCore interface {

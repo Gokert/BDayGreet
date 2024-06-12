@@ -9,11 +9,14 @@ import (
 	"vk-rest/configs"
 	utils "vk-rest/pkg"
 	errs "vk-rest/pkg/errors"
+	"vk-rest/pkg/models"
+	pkg "vk-rest/pkg/sql"
 )
 
 type ISubRepo interface {
 	BirthdaySub(ctx context.Context, userId, subscriberId uint64) (bool, error)
 	BirthdayUnSub(ctx context.Context, userId, subscriberId uint64) (bool, error)
+	GetEmployeesBySubId(ctx context.Context, subId uint64) ([]*models.UserItem, error)
 }
 
 type SubRepo struct {
@@ -68,7 +71,7 @@ func (r *SubRepo) pingDb(timer uint32, log *logrus.Logger) error {
 func (r *SubRepo) BirthdaySub(ctx context.Context, userId, subscriberId uint64) (bool, error) {
 	fmt.Printf("%d %d", userId, subscriberId)
 
-	res, err := r.db.ExecContext(ctx, "INSERT INTO subscriber (id_subscribe_from, id_subscribe_to) VALUES ($1, $2)", userId, subscriberId)
+	res, err := r.db.ExecContext(ctx, pkg.BirthdaySub, userId, subscriberId)
 	if err != nil {
 		if err.Error() == errs.ErrDuplicateSub.Error() {
 			return false, err
@@ -90,7 +93,7 @@ func (r *SubRepo) BirthdaySub(ctx context.Context, userId, subscriberId uint64) 
 }
 
 func (r *SubRepo) BirthdayUnSub(ctx context.Context, userId, subscriberId uint64) (bool, error) {
-	res, err := r.db.ExecContext(ctx, "DELETE FROM subscriber WHERE id_subscribe_from = $1 AND id_subscribe_to = $2", userId, subscriberId)
+	res, err := r.db.ExecContext(ctx, pkg.BirthdayUnSub, userId, subscriberId)
 	if err != nil {
 		return false, fmt.Errorf("insert subscriber err: %s", err.Error())
 	}
@@ -105,4 +108,28 @@ func (r *SubRepo) BirthdayUnSub(ctx context.Context, userId, subscriberId uint64
 	}
 
 	return true, nil
+}
+
+func (r *SubRepo) GetEmployeesBySubId(ctx context.Context, subId uint64) ([]*models.UserItem, error) {
+	users := make([]*models.UserItem, 0)
+
+	rows, err := r.db.QueryContext(ctx, "SELECT users.id, user.login, user.email, user.birthday FROM users WHERE id_subscribe_to=?", subId)
+	if err != nil {
+		return nil, fmt.Errorf("get users err: %s", err.Error())
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		user := &models.UserItem{}
+
+		err := rows.Scan(&user.Id, &user.Login, &user.Email, &user.Birthday)
+		if err != nil {
+			return nil, fmt.Errorf("get users err: %s", err.Error())
+		}
+
+		users = append(users, user)
+
+	}
+
+	return users, nil
 }

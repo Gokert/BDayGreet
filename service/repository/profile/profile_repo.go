@@ -11,6 +11,7 @@ import (
 	"vk-rest/configs"
 	utils "vk-rest/pkg"
 	"vk-rest/pkg/models"
+	pkg "vk-rest/pkg/sql"
 )
 
 type IProfileRepo interface {
@@ -75,8 +76,7 @@ func (r *ProfileRepo) pingDb(timer uint32, log *logrus.Logger) error {
 func (r *ProfileRepo) GetUser(ctx context.Context, login string, password []byte) (*models.UserItem, bool, error) {
 	post := &models.UserItem{}
 
-	err := r.db.QueryRowContext(ctx, "SELECT profile.id, profile.login, profile.email, profile.birthday FROM profile "+
-		"WHERE profile.login = $1 AND profile.password = $2 ", login, password).Scan(&post.Id, &post.Login, &post.Email, &post.Birthday)
+	err := r.db.QueryRowContext(ctx, pkg.GetUser, login, password).Scan(&post.Id, &post.Login, &post.Email, &post.Birthday)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, false, nil
@@ -90,9 +90,7 @@ func (r *ProfileRepo) GetUser(ctx context.Context, login string, password []byte
 func (r *ProfileRepo) FindUser(ctx context.Context, login string) (bool, error) {
 	post := &models.UserItem{}
 
-	err := r.db.QueryRowContext(ctx,
-		"SELECT login FROM profile "+
-			"WHERE login = $1", login).Scan(&post.Login)
+	err := r.db.QueryRowContext(ctx, pkg.FindUser, login).Scan(&post.Login)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -105,7 +103,7 @@ func (r *ProfileRepo) FindUser(ctx context.Context, login string) (bool, error) 
 
 func (r *ProfileRepo) CreateUser(ctx context.Context, user *models.SignupRequest, password []byte) error {
 	var userID uint64
-	err := r.db.QueryRowContext(ctx, "INSERT INTO profile(login, password, email, birthday) VALUES($1, $2, $3, $4) RETURNING id", user.Login, password, user.Email, user.Birthday).Scan(&userID)
+	err := r.db.QueryRowContext(ctx, pkg.CreateUser, user.Login, password, user.Email, user.Birthday).Scan(&userID)
 	if err != nil {
 		return fmt.Errorf("create user error: %s", err.Error())
 	}
@@ -116,8 +114,7 @@ func (r *ProfileRepo) CreateUser(ctx context.Context, user *models.SignupRequest
 func (r *ProfileRepo) GetUserId(ctx context.Context, login string) (uint64, error) {
 	var userID uint64
 
-	err := r.db.QueryRowContext(ctx,
-		"SELECT profile.id FROM profile WHERE profile.login = $1", login).Scan(&userID)
+	err := r.db.QueryRowContext(ctx, pkg.GetUserId, login).Scan(&userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, fmt.Errorf("user not found for login: %s", login)
@@ -131,7 +128,7 @@ func (r *ProfileRepo) GetUserId(ctx context.Context, login string) (uint64, erro
 func (r *ProfileRepo) GetEmployees(ctx context.Context, offset, limit uint64) ([]*models.UserItem, error) {
 	users := make([]*models.UserItem, 0)
 
-	rows, err := r.db.QueryContext(ctx, "SELECT profile.id, profile.login, profile.email, profile.birthday FROM profile OFFSET $1 LIMIT $2", offset, limit)
+	rows, err := r.db.QueryContext(ctx, pkg.GetEmployees, offset, limit)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return users, nil

@@ -2,24 +2,10 @@ package utils
 
 import (
 	"crypto/sha512"
-	"fmt"
-	"github.com/sirupsen/logrus"
 	"math/rand"
-	"unicode/utf8"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-const (
-	FilmTitleBegin       = 1
-	FilmTitleEnd         = 150
-	FilmDescriptionBegin = 1
-	FilmDescriptionEnd   = 1000
-	FilmRatingBegin      = 0
-	FilmRatingEnd        = 10
-	ActorNameBegin       = 1
-	ActorNameEnd         = 150
-)
 
 func HashPassword(password string) []byte {
 	hashPassword := sha512.Sum512([]byte(password))
@@ -33,15 +19,6 @@ func RandStringRunes(seed int) string {
 		symbols[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(symbols)
-}
-
-func ValidateStringSize(validatedString string, begin int, end int, validateError string, logger *logrus.Logger) error {
-	validateStringLength := utf8.RuneCountInString(validatedString)
-	if validateStringLength > end || validateStringLength < begin {
-		logger.Error(validateError)
-		return fmt.Errorf(validateError)
-	}
-	return nil
 }
 
 const MaxRetries = 5

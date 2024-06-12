@@ -11,7 +11,7 @@ import (
 	"vk-rest/pkg/middleware"
 	"vk-rest/pkg/models"
 	httpResponse "vk-rest/pkg/response"
-	"vk-rest/usecase"
+	"vk-rest/service/usecase/core"
 )
 
 type Api struct {

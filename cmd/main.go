@@ -4,8 +4,8 @@ import (
 	"github.com/joho/godotenv"
 	"vk-rest/configs"
 	"vk-rest/configs/logger"
-	delivery "vk-rest/delivery/http"
-	"vk-rest/usecase"
+	"vk-rest/service/delivery/http"
+	"vk-rest/service/usecase/core"
 )
 
 func main() {
