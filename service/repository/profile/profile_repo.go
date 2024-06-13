@@ -20,6 +20,7 @@ type IProfileRepo interface {
 	CreateUser(ctx context.Context, user *models.SignupRequest, password []byte) error
 	GetUserId(ctx context.Context, login string) (uint64, error)
 	GetEmployees(ctx context.Context, offset, limit uint64) ([]*models.UserItem, error)
+	GetBirthdayEmployees(ctx context.Context) ([]*models.UserItem, error)
 }
 
 type ProfileRepo struct {
@@ -147,6 +148,34 @@ func (r *ProfileRepo) GetEmployees(ctx context.Context, offset, limit uint64) ([
 		}
 
 		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+func (r *ProfileRepo) GetBirthdayEmployees(ctx context.Context) ([]*models.UserItem, error) {
+	users := make([]*models.UserItem, 0)
+
+	query := `
+        SELECT id, login, email, birthday
+        FROM profile
+        WHERE EXTRACT(DAY FROM birthday) = EXTRACT(DAY FROM CURRENT_DATE)
+        AND EXTRACT(MONTH FROM birthday) = EXTRACT(MONTH FROM CURRENT_DATE)
+    `
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user models.UserItem
+		err := rows.Scan(&user.Id, &user.Login, &user.Email, &user.Birthday)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
 	}
 
 	return users, nil

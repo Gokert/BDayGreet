@@ -6,6 +6,7 @@ import (
 	"vk-rest/configs/logger"
 	"vk-rest/service/delivery/http"
 	"vk-rest/service/usecase/core"
+	"vk-rest/service/usecase/worker"
 )
 
 func main() {
@@ -35,6 +36,18 @@ func main() {
 	}
 
 	api := delivery.GetApi(core, log)
+
+	w, err := worker.GetWorker(psxCfg, log)
+	if err != nil {
+		log.Error("Create worker error: ", err.Error())
+		return
+	}
+
+	err = w.StartWorker()
+	if err != nil {
+		log.Error("Start worker error: ", err.Error())
+		return
+	}
 
 	log.Info("Server running")
 	err = api.ListenAndServe("8081")
