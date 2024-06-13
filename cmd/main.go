@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/joho/godotenv"
+	"os"
 	"vk-rest/configs"
 	"vk-rest/configs/logger"
 	"vk-rest/service/delivery/http"
@@ -49,8 +50,10 @@ func main() {
 		return
 	}
 
-	log.Info("Server running")
-	err = api.ListenAndServe("8081")
+	port := os.Getenv("APP_PORT")
+	log.Info("Server running on port: ", port)
+
+	err = api.ListenAndServe(port)
 	if err != nil {
 		log.Error("ListenAndServe error: ", err)
 		return

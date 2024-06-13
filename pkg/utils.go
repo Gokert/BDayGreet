@@ -22,3 +22,7 @@ func RandStringRunes(seed int) string {
 }
 
 const MaxRetries = 5
+
+var HeaderBirthdayEmp = "Поздравление"
+var BodyBirthdayFromEmp = "Сегодня день рождения у %s, не забудьте поздравить его!"
+var BodyBirthdayToEmp = "Поздравляем Вас с днём рождения!"

@@ -21,6 +21,7 @@ type IProfileRepo interface {
 	GetUserId(ctx context.Context, login string) (uint64, error)
 	GetEmployees(ctx context.Context, offset, limit uint64) ([]*models.UserItem, error)
 	GetBirthdayEmployees(ctx context.Context) ([]*models.UserItem, error)
+	GetEmployeeByBirthday(ctx context.Context, id uint64) ([]*models.UserItem, error)
 }
 
 type ProfileRepo struct {
@@ -176,6 +177,33 @@ func (r *ProfileRepo) GetBirthdayEmployees(ctx context.Context) ([]*models.UserI
 			return nil, err
 		}
 		users = append(users, &user)
+	}
+
+	return users, nil
+}
+
+func (r *ProfileRepo) GetEmployeeByBirthday(ctx context.Context, id uint64) ([]*models.UserItem, error) {
+	users := make([]*models.UserItem, 0)
+
+	rows, err := r.db.QueryContext(ctx, "SELECT p.id, p.login, p.email, p.birthday FROM profile p JOIN subscriber s ON p.id = s.id_subscribe_from WHERE s.id_subscribe_to = $1", id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return users, nil
+		}
+
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		user := &models.UserItem{}
+
+		err := rows.Scan(&user.Id, &user.Login, &user.Email, &user.Birthday)
+		if err != nil {
+			return nil, fmt.Errorf("get user rows scan error: %s", err.Error())
+		}
+
+		users = append(users, user)
 	}
 
 	return users, nil
