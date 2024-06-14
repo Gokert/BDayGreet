@@ -113,7 +113,7 @@ func (r *SubRepo) BirthdayUnSub(ctx context.Context, userId, subscriberId uint64
 func (r *SubRepo) GetEmployeesBySubId(ctx context.Context, subId uint64) ([]*models.UserItem, error) {
 	users := make([]*models.UserItem, 0)
 
-	rows, err := r.db.QueryContext(ctx, "SELECT users.id, user.login, user.email, user.birthday FROM users WHERE id_subscribe_to=?", subId)
+	rows, err := r.db.QueryContext(ctx, pkg.GetEmployeesBySubId, subId)
 	if err != nil {
 		return nil, fmt.Errorf("get users err: %s", err.Error())
 	}

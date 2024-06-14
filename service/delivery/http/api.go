@@ -14,6 +14,17 @@ import (
 	"vk-rest/service/usecase/core"
 )
 
+//go:generate mockgen -source=api.go -destination=.mocks/http_api_mock.go -package=mocks
+type IApi interface {
+	Signin(w http.ResponseWriter, r *http.Request)
+	Signup(w http.ResponseWriter, r *http.Request)
+	Logout(w http.ResponseWriter, r *http.Request)
+	AuthAccept(w http.ResponseWriter, r *http.Request)
+	GetEmployees(w http.ResponseWriter, r *http.Request)
+	BirthdaySub(w http.ResponseWriter, r *http.Request)
+	BirthdayUnSub(w http.ResponseWriter, r *http.Request)
+}
+
 type Api struct {
 	log     *logrus.Logger
 	mx      *http.ServeMux
@@ -63,7 +74,7 @@ func (a *Api) Signin(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		a.log.Error("Signin error: ", err.Error())
-		response := models.Response{Status: http.StatusBadRequest, Body: models.ErrorResponse{Error: "Bad request"}}
+		response := models.Response{Status: http.StatusBadRequest, Body: models.ErrorResponse{Error: errs.ErrBadRequest}}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -71,7 +82,7 @@ func (a *Api) Signin(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &request)
 	if err != nil {
 		a.log.Error("Signin error: ", err.Error())
-		response := models.Response{Status: http.StatusBadRequest, Body: models.ErrorResponse{Error: "Bad request"}}
+		response := models.Response{Status: http.StatusBadRequest, Body: models.ErrorResponse{Error: errs.ErrBadRequest}}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
@@ -79,13 +90,13 @@ func (a *Api) Signin(w http.ResponseWriter, r *http.Request) {
 	_, found, err := a.profile.FindUserAccount(r.Context(), request.Login, request.Password)
 	if err != nil {
 		a.log.Error("Signin error: ", err.Error())
-		response := models.Response{Status: http.StatusInternalServerError, Body: models.ErrorResponse{Error: "Internal server error"}}
+		response := models.Response{Status: http.StatusInternalServerError, Body: models.ErrorResponse{Error: errs.ErrInternalServer}}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}
 
 	if !found {
-		response := models.Response{Status: http.StatusUnauthorized, Body: models.ErrorResponse{Error: "Not found"}}
+		response := models.Response{Status: http.StatusUnauthorized, Body: models.ErrorResponse{Error: errs.ErrNotFoundString}}
 		httpResponse.SendResponse(w, r, &response, a.log)
 		return
 	}

@@ -119,7 +119,7 @@ func (r *ProfileRepo) GetUserId(ctx context.Context, login string) (uint64, erro
 	err := r.db.QueryRowContext(ctx, pkg.GetUserId, login).Scan(&userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, fmt.Errorf("user not found for login: %s", login)
+			return 0, nil
 		}
 		return 0, fmt.Errorf("get userpro file id error: %s", err.Error())
 	}
@@ -157,14 +157,7 @@ func (r *ProfileRepo) GetEmployees(ctx context.Context, offset, limit uint64) ([
 func (r *ProfileRepo) GetBirthdayEmployees(ctx context.Context) ([]*models.UserItem, error) {
 	users := make([]*models.UserItem, 0)
 
-	query := `
-        SELECT id, login, email, birthday
-        FROM profile
-        WHERE EXTRACT(DAY FROM birthday) = EXTRACT(DAY FROM CURRENT_DATE)
-        AND EXTRACT(MONTH FROM birthday) = EXTRACT(MONTH FROM CURRENT_DATE)
-    `
-
-	rows, err := r.db.QueryContext(ctx, query)
+	rows, err := r.db.QueryContext(ctx, pkg.GetBirthdayEmployees)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +178,7 @@ func (r *ProfileRepo) GetBirthdayEmployees(ctx context.Context) ([]*models.UserI
 func (r *ProfileRepo) GetEmployeeByBirthday(ctx context.Context, id uint64) ([]*models.UserItem, error) {
 	users := make([]*models.UserItem, 0)
 
-	rows, err := r.db.QueryContext(ctx, "SELECT p.id, p.login, p.email, p.birthday FROM profile p JOIN subscriber s ON p.id = s.id_subscribe_from WHERE s.id_subscribe_to = $1", id)
+	rows, err := r.db.QueryContext(ctx, pkg.GetEmployeeByBirthday, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return users, nil

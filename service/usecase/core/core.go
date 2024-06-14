@@ -13,6 +13,7 @@ import (
 	"vk-rest/service/repository/sub"
 )
 
+//go:generate mockgen -source=core.go -destination=.mocks/core_mock.go -package=mocks
 type IProfileCore interface {
 	GetUserId(ctx context.Context, sid string) (uint64, error)
 	GetEmployees(ctx context.Context, offset, limit uint64) ([]*models.UserItem, error)
@@ -71,7 +72,6 @@ func GetCore(psxCfg *configs.DbPsxConfig, redisCfg *configs.DbRedisCfg, log *log
 
 func (c *Core) GetUserId(ctx context.Context, sid string) (uint64, error) {
 	login, err := c.sessions.GetUserLogin(ctx, sid)
-
 	if err != nil {
 		c.log.Errorf("get user login error: %s", err.Error())
 		return 0, fmt.Errorf("get user login error: %s", err.Error())
@@ -88,7 +88,6 @@ func (c *Core) GetUserId(ctx context.Context, sid string) (uint64, error) {
 
 func (c *Core) GetUserName(ctx context.Context, sid string) (string, error) {
 	login, err := c.sessions.GetUserLogin(ctx, sid)
-
 	if err != nil {
 		c.log.Errorf("get user name error: %s", err.Error())
 		return "", fmt.Errorf("get user name error: %s", err.Error())
@@ -98,16 +97,13 @@ func (c *Core) GetUserName(ctx context.Context, sid string) (string, error) {
 }
 
 func (c *Core) CreateSession(ctx context.Context, login string) (models.Session, error) {
-	sid := utils.RandStringRunes(32)
-
 	newSession := models.Session{
 		Login:     login,
-		SID:       sid,
+		SID:       utils.RandStringRunes(32),
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 
 	sessionAdded, err := c.sessions.AddSession(ctx, newSession)
-
 	if !sessionAdded && err != nil {
 		return models.Session{}, err
 	}
@@ -121,7 +117,6 @@ func (c *Core) CreateSession(ctx context.Context, login string) (models.Session,
 
 func (c *Core) FindActiveSession(ctx context.Context, sid string) (bool, error) {
 	login, err := c.sessions.CheckActiveSession(ctx, sid)
-
 	if err != nil {
 		c.log.Errorf("find active session error: %s", err.Error())
 		return false, fmt.Errorf("find active session error: %s", err.Error())
@@ -132,7 +127,6 @@ func (c *Core) FindActiveSession(ctx context.Context, sid string) (bool, error) 
 
 func (c *Core) KillSession(ctx context.Context, sid string) error {
 	_, err := c.sessions.DeleteSession(ctx, sid)
-
 	if err != nil {
 		c.log.Errorf("delete session error: %s", err.Error())
 		return fmt.Errorf("delete sessionerror: %s", err.Error())
@@ -142,8 +136,7 @@ func (c *Core) KillSession(ctx context.Context, sid string) error {
 }
 
 func (c *Core) CreateUserAccount(ctx context.Context, user *models.SignupRequest) error {
-	hashPassword := utils.HashPassword(user.Password)
-	err := c.profiles.CreateUser(ctx, user, hashPassword)
+	err := c.profiles.CreateUser(ctx, user, utils.HashPassword(user.Password))
 	if err != nil {
 		c.log.Errorf("create user account error: %s", err.Error())
 		return fmt.Errorf("create user account error: %s", err.Error())
@@ -153,12 +146,12 @@ func (c *Core) CreateUserAccount(ctx context.Context, user *models.SignupRequest
 }
 
 func (c *Core) FindUserAccount(ctx context.Context, login string, password string) (*models.UserItem, bool, error) {
-	hashPassword := utils.HashPassword(password)
-	user, found, err := c.profiles.GetUser(ctx, login, hashPassword)
+	user, found, err := c.profiles.GetUser(ctx, login, utils.HashPassword(password))
 	if err != nil {
 		c.log.Errorf("find user error: %s", err.Error())
 		return nil, false, fmt.Errorf("find user account error: %s", err.Error())
 	}
+
 	return user, found, nil
 }
 

@@ -4,6 +4,7 @@ type SigninRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
+
 type SignupRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`

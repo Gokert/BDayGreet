@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/golang/mock v1.6.0
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/joho/godotenv v1.5.1
 	github.com/robfig/cron v1.2.0
