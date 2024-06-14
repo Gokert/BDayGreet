@@ -2,6 +2,12 @@
 ```
 make up
 ```
+### Схема проекта
+![img.png](images_readme/img_8.png)
+
+### Схема БД
+![img.png](images_readme/img_9.png)
+
 ### Авторизация
 #### POST /signin
 Результатом успешной авторизации является отдача cookie. Пример запроса: <br/>
